@@ -1,209 +1,288 @@
-// Get the canvas element
-const canvas = document.querySelector('.canvas');
-const ctx = canvas.getContext('2d');
+// Constants
+const GRID_SIZE = 12;
+const CELL_SIZE = 600 / GRID_SIZE;
+const ANIMATION_DURATION = 2000; // milliseconds
 
-// Set the canvas dimensions
-canvas.width = 600;
-canvas.height = 650; // Increased height to fit the score
+// Game class
+class Game {
+  constructor() {
+    // Get the canvas element
+    this.canvas = document.querySelector('.canvas');
+    this.ctx = this.canvas.getContext('2d');
 
-// Center the canvas on the screen
-const canvas_rect = canvas.getBoundingClientRect();
-canvas.style.position = 'absolute';
-canvas.style.top = `${(window.innerHeight - canvas_rect.height) / 2}px`;
-canvas.style.left = `${(window.innerWidth - canvas_rect.width) / 2}px`;
+    // Set the canvas dimensions
+    this.canvas.width = 600;
+    this.canvas.height = 650; // Increased height to fit the score
 
-// Define the grid dimensions
-const grid_size = 12;
-const cell_size = canvas.width / grid_size;
+    // Center the canvas on the screen
+    const canvas_rect = this.canvas.getBoundingClientRect();
+    this.canvas.style.position = 'absolute';
+    this.canvas.style.top = `${(window.innerHeight - canvas_rect.height) / 2}px`;
+    this.canvas.style.left = `${(window.innerWidth - canvas_rect.width) / 2}px`;
 
-// Define the shapes and their colors
-const shapes = [
-  { type: 'circle', color: 'red' },
-  { type: 'square', color: 'blue' },
-  { type: 'triangle', color: 'green' },
-  { type: 'diamond', color: 'yellow' },
-  { type: 'hexagon', color: 'purple' }
-];
+    // Define the shapes and their colors
+    this.shapes = [
+      { type: 'circle', color: 'red' },
+      { type: 'square', color: 'blue' },
+      { type: 'triangle', color: 'green' },
+      { type: 'diamond', color: 'yellow' },
+      { type: 'hexagon', color: 'purple' }
+    ];
 
-// Initialize the grid with random shapes
-let grid = [];
-for (let i = 0; i < grid_size; i++) {
-  grid[i] = [];
-  for (let j = 0; j < grid_size; j++) {
-    const shape = shapes[Math.floor(Math.random() * shapes.length)];
-    grid[i][j] = { shape, selected: false, animating: false };
+    // Initialize the grid with random shapes
+    this.grid = this.initializeGrid();
+
+    // Initialize the game state
+    this.selected_cell = null;
+    this.score = 0;
+
+    // Add event listeners
+    this.canvas.addEventListener('click', (event) => {
+      this.handleClick(event);
+    });
+
+    // Check for matches every 100ms
+    setInterval(() => {
+      this.checkMatches();
+    }, 100);
+
+    // Start the game loop
+    this.update();
   }
-}
 
-// Initialize the game state
-let selected_cell = null;
-let score = 0;
-
-// Draw the grid
-function draw_grid() {
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  for (let i = 0; i < grid_size; i++) {
-    for (let j = 0; j < grid_size; j++) {
-      const cell = grid[i][j];
-      if (cell.shape) {
-        ctx.fillStyle = cell.shape.color;
-        ctx.beginPath();
-        switch (cell.shape.type) {
-          case 'circle':
-            ctx.arc(j * cell_size + cell_size / 2, i * cell_size + cell_size / 2, cell_size / 2, 0, 2 * Math.PI);
-            break;
-          case 'square':
-            ctx.rect(j * cell_size, i * cell_size, cell_size, cell_size);
-            break;
-          case 'triangle':
-            ctx.moveTo(j * cell_size + cell_size / 2, i * cell_size);
-            ctx.lineTo(j * cell_size + cell_size, i * cell_size + cell_size);
-            ctx.lineTo(j * cell_size, i * cell_size + cell_size);
-            ctx.closePath();
-            break;
-          case 'diamond':
-            ctx.moveTo(j * cell_size + cell_size / 2, i * cell_size);
-            ctx.lineTo(j * cell_size + cell_size, i * cell_size + cell_size / 2);
-            ctx.lineTo(j * cell_size + cell_size / 2, i * cell_size + cell_size);
-            ctx.lineTo(j * cell_size, i * cell_size + cell_size / 2);
-            ctx.closePath();
-            break;
-          case 'hexagon':
-            ctx.moveTo(j * cell_size + cell_size / 2, i * cell_size);
-            ctx.lineTo(j * cell_size + cell_size, i * cell_size + cell_size / 4);
-            ctx.lineTo(j * cell_size + cell_size, i * cell_size + 3 * cell_size / 4);
-            ctx.lineTo(j * cell_size + cell_size / 2, i * cell_size + cell_size);
-            ctx.lineTo(j * cell_size, i * cell_size + 3 * cell_size / 4);
-            ctx.lineTo(j * cell_size, i * cell_size + cell_size / 4);
-            ctx.closePath();
-            break;
-        }
-        ctx.fill();
-        if (cell.selected) {
-          ctx.strokeStyle = 'black';
-          ctx.lineWidth = 2;
-          ctx.stroke();
-        }
+  // Initialize the grid with random shapes
+  initializeGrid() {
+    let grid = [];
+    for (let i = 0; i < GRID_SIZE; i++) {
+      grid[i] = [];
+      for (let j = 0; j < GRID_SIZE; j++) {
+        const shape = this.shapes[Math.floor(Math.random() * this.shapes.length)];
+        grid[i][j] = { shape, selected: false, animating: false };
       }
     }
+    return grid;
   }
-  // Draw the score outside the grid
-  ctx.fillStyle = 'black';
-  ctx.font = '24px Arial';
-  ctx.textAlign = 'left';
-  ctx.textBaseline = 'top';
-  ctx.fillText(`Score: ${score}`, 10, canvas.height - 40);
-}
 
-// Handle user input
-canvas.addEventListener('click', (event) => {
-  const x = Math.floor(event.offsetX / cell_size);
-  const y = Math.floor(event.offsetY / cell_size);
-  if (selected_cell === null) {
-    selected_cell = { x, y };
-    grid[y][x].selected = true;
-  } else {
-    const temp = grid[y][x].shape;
-    grid[y][x].shape = grid[selected_cell.y][selected_cell.x].shape;
-    grid[selected_cell.y][selected_cell.x].shape = temp;
-    grid[selected_cell.y][selected_cell.x].selected = false;
-    selected_cell = null;
+  // Handle user input
+  handleClick(event) {
+    const x = Math.floor(event.offsetX / CELL_SIZE);
+    const y = Math.floor(event.offsetY / CELL_SIZE);
+    if (this.selected_cell === null) {
+      this.selected_cell = { x, y };
+      this.grid[y][x].selected = true;
+    } else {
+      const temp = this.grid[y][x].shape;
+      this.grid[y][x].shape = this.grid[this.selected_cell.y][this.selected_cell.x].shape;
+      this.grid[this.selected_cell.y][this.selected_cell.x].shape = temp;
+      this.grid[this.selected_cell.y][this.selected_cell.x].selected = false;
+      this.selected_cell = null;
+    }
   }
-});
 
-// Check for matches
-function check_matches() {
+  // Check for matches
+  checkMatches() {
     // Check rows
-    for (let i = 0; i < grid_size; i++) {
+    for (let i = 0; i < GRID_SIZE; i++) {
       let match = 1;
       let match_type = null;
-      for (let j = 0; j < grid_size; j++) {
-        if (grid[i][j] && grid[i][j].shape) {
-          if (grid[i][j].shape.type === match_type) {
+      for (let j = 0; j < GRID_SIZE; j++) {
+        if (this.grid[i][j] && this.grid[i][j].shape) {
+          if (this.grid[i][j].shape.type === match_type) {
             match++;
           } else {
             if (match >= 3) {
               for (let k = j - match; k < j; k++) {
-                destroy_cell(i, k);
+                this.destroyCell(i, k);
               }
-              score += match;
+              this.score += match;
             }
             match = 1;
-            match_type = grid[i][j].shape.type;
+            match_type = this.grid[i][j].shape.type;
           }
         }
       }
       if (match >= 3) {
-        for (let k = grid_size - match; k < grid_size; k++) {
-          destroy_cell(i, k);
+        for (let k = GRID_SIZE - match; k < GRID_SIZE; k++) {
+          this.destroyCell(i, k);
         }
-        score += match;
+        this.score += match;
       }
     }
     // Check columns
-    for (let j = 0; j < grid_size; j++) {
+    for (let j = 0; j < GRID_SIZE; j++) {
       let match = 1;
       let match_type = null;
-      for (let i = 0; i < grid_size; i++) {
-        if (grid[i][j] && grid[i][j].shape) {
-          if (grid[i][j].shape.type === match_type) {
+      for (let i = 0; i < GRID_SIZE; i++) {
+        if (this.grid[i][j] && this.grid[i][j].shape) {
+          if (this.grid[i][j].shape.type === match_type) {
             match++;
           } else {
             if (match >= 3) {
               for (let k = i - match; k < i; k++) {
-                destroy_cell(k, j);
+                this.destroyCell(k, j);
               }
-              score += match;
+              this.score += match;
             }
             match = 1;
-            match_type = grid[i][j].shape.type;
+            match_type = this.grid[i][j].shape.type;
           }
         }
       }
       if (match >= 3) {
-        for (let k = grid_size - match; k < grid_size; k++) {
-          destroy_cell(k, j);
+        for (let k = GRID_SIZE - match; k < GRID_SIZE; k++) {
+          this.destroyCell(k, j);
         }
-        score += match;
+        this.score += match;
       }
     }
   }
 
 // Destroy a cell
-function destroy_cell(i, j) {
-  grid[i][j].shape = null;
-  grid[i][j].animating = true;
-  // Animate the destruction
-  const animation_duration = 500; // milliseconds
-  const start_time = performance.now();
-  function animate_destruction() {
-    const current_time = performance.now();
-    const progress = (current_time - start_time) / animation_duration;
-    if (progress < 1) {
-      ctx.fillStyle = 'white';
-      ctx.fillRect(j * cell_size, i * cell_size, cell_size, cell_size * (1 - progress));
-      requestAnimationFrame(animate_destruction);
-    } else {
-      // Shift down cells above
-      for (let k = i; k > 0; k--) {
-        grid[k][j].shape = grid[k - 1][j].shape;
+destroyCell(i, j) {
+    const color = this.grid[i][j].shape ? this.grid[i][j].shape.color : 'white'; // Store the color of the shape
+    const shapeType = this.grid[i][j].shape ? this.grid[i][j].shape.type : null; // Store the type of the shape
+    this.grid[i][j].shape = null;
+    this.grid[i][j].animating = true;
+    let offsetY = 0; // Track the vertical offset
+    const shatteredPieces = []; // Store the shattered pieces
+    // Create the shattered pieces
+    for (let k = 0; k < 5; k++) {
+      const piece = {
+        x: j * CELL_SIZE + CELL_SIZE / 2 + Math.random() * CELL_SIZE - CELL_SIZE / 2,
+        y: i * CELL_SIZE + CELL_SIZE / 2 + Math.random() * CELL_SIZE - CELL_SIZE / 2,
+        vx: Math.random() * 10 - 5, // Horizontal velocity
+        vy: Math.random() * 10 - 5, // Vertical velocity
+        type: shapeType,
+      };
+      shatteredPieces.push(piece);
+    }
+    // Animate the destruction
+    const start_time = performance.now();
+    const animateDestruction = () => {
+      const current_time = performance.now();
+      const progress = (current_time - start_time) / 1000; // Decreased animation duration
+      if (progress < 1) {
+        // Draw the shattered pieces
+        for (const piece of shatteredPieces) {
+          this.ctx.fillStyle = color; // Use the stored color
+          this.ctx.beginPath();
+          switch (piece.type) { // Use the stored shape type
+            case 'circle':
+              this.ctx.arc(piece.x + piece.vx * progress, piece.y + piece.vy * progress + offsetY, CELL_SIZE / 4, 0, 2 * Math.PI);
+              break;
+            case 'square':
+              this.ctx.rect(piece.x + piece.vx * progress, piece.y + piece.vy * progress + offsetY, CELL_SIZE / 2, CELL_SIZE / 2);
+              break;
+            case 'triangle':
+              this.ctx.moveTo(piece.x + piece.vx * progress, piece.y + piece.vy * progress + offsetY);
+              this.ctx.lineTo(piece.x + CELL_SIZE / 2 + piece.vx * progress, piece.y + CELL_SIZE / 2 + piece.vy * progress + offsetY);
+              this.ctx.lineTo(piece.x - CELL_SIZE / 2 + piece.vx * progress, piece.y + CELL_SIZE / 2 + piece.vy * progress + offsetY);
+              this.ctx.closePath();
+              break;
+            case 'diamond':
+              this.ctx.moveTo(piece.x + piece.vx * progress, piece.y + piece.vy * progress + offsetY);
+              this.ctx.lineTo(piece.x + CELL_SIZE / 2 + piece.vx * progress, piece.y + CELL_SIZE / 4 + piece.vy * progress + offsetY);
+              this.ctx.lineTo(piece.x + piece.vx * progress, piece.y + CELL_SIZE / 2 + piece.vy * progress + offsetY);
+              this.ctx.lineTo(piece.x - CELL_SIZE / 2 + piece.vx * progress, piece.y + CELL_SIZE / 4 + piece.vy * progress + offsetY);
+              this.ctx.closePath();
+              break;
+            case 'hexagon':
+              this.ctx.moveTo(piece.x + piece.vx * progress, piece.y + piece.vy * progress + offsetY);
+              this.ctx.lineTo(piece.x + CELL_SIZE / 2 + piece.vx * progress, piece.y + CELL_SIZE / 6 + piece.vy * progress + offsetY);
+              this.ctx.lineTo(piece.x + CELL_SIZE / 2 + piece.vx * progress, piece.y + CELL_SIZE / 2 + piece.vy * progress + offsetY);
+              this.ctx.lineTo(piece.x + piece.vx * progress, piece.y + CELL_SIZE / 2 + piece.vy * progress + offsetY);
+              this.ctx.lineTo(piece.x - CELL_SIZE / 2 + piece.vx * progress, piece.y + CELL_SIZE / 2 + piece.vy * progress + offsetY);
+              this.ctx.lineTo(piece.x - CELL_SIZE / 2 + piece.vx * progress, piece.y + CELL_SIZE / 6 + piece.vy * progress + offsetY);
+              this.ctx.closePath();
+              break;
+          }
+          this.ctx.fill();
+        }
+        offsetY += 5; // Increase the vertical offset
+        requestAnimationFrame(animateDestruction);
+      } else {
+        // Shift down cells above
+        for (let k = i; k > 0; k--) {
+          this.grid[k][j].shape = this.grid[k - 1][j].shape;
+        }
+        // Add a new shape at the top
+        const shape = this.shapes[Math.floor(Math.random() * this.shapes.length)];
+        this.grid[0][j].shape = shape;
+        this.grid[i][j].animating = false;
       }
-      // Add a new shape at the top
-      const shape = shapes[Math.floor(Math.random() * shapes.length)];
-      grid[0][j].shape = shape;
-      grid[i][j].animating = false;
+    };
+    animateDestruction();
+  }
+
+  // Draw a cell
+  drawCell(i, j) {
+    const cell = this.grid[i][j];
+    if (cell.shape) {
+      this.ctx.fillStyle = cell.shape.color;
+      this.ctx.beginPath();
+      switch (cell.shape.type) {
+        case 'circle':
+          this.ctx.arc(j * CELL_SIZE + CELL_SIZE / 2, i * CELL_SIZE + CELL_SIZE / 2, CELL_SIZE / 2, 0, 2 * Math.PI);
+          break;
+        case 'square':
+          this.ctx.rect(j * CELL_SIZE, i * CELL_SIZE, CELL_SIZE, CELL_SIZE);
+          break;
+        case 'triangle':
+          this.ctx.moveTo(j * CELL_SIZE + CELL_SIZE / 2, i * CELL_SIZE);
+          this.ctx.lineTo(j * CELL_SIZE + CELL_SIZE, i * CELL_SIZE + CELL_SIZE);
+          this.ctx.lineTo(j * CELL_SIZE, i * CELL_SIZE + CELL_SIZE);
+          this.ctx.closePath();
+          break;
+        case 'diamond':
+          this.ctx.moveTo(j * CELL_SIZE + CELL_SIZE / 2, i * CELL_SIZE);
+          this.ctx.lineTo(j * CELL_SIZE + CELL_SIZE, i * CELL_SIZE + CELL_SIZE / 2);
+          this.ctx.lineTo(j * CELL_SIZE + CELL_SIZE / 2, i * CELL_SIZE + CELL_SIZE);
+          this.ctx.lineTo(j * CELL_SIZE, i * CELL_SIZE + CELL_SIZE / 2);
+          this.ctx.closePath();
+          break;
+        case 'hexagon':
+          this.ctx.moveTo(j * CELL_SIZE + CELL_SIZE / 2, i * CELL_SIZE);
+          this.ctx.lineTo(j * CELL_SIZE + CELL_SIZE, i * CELL_SIZE + CELL_SIZE / 4);
+          this.ctx.lineTo(j * CELL_SIZE + CELL_SIZE, i * CELL_SIZE + 3 * CELL_SIZE / 4);
+          this.ctx.lineTo(j * CELL_SIZE + CELL_SIZE / 2, i * CELL_SIZE + CELL_SIZE);
+          this.ctx.lineTo(j * CELL_SIZE, i * CELL_SIZE + 3 * CELL_SIZE / 4);
+          this.ctx.lineTo(j * CELL_SIZE, i * CELL_SIZE + CELL_SIZE / 4);
+          this.ctx.closePath();
+          break;
+      }
+      this.ctx.fill();
+      if (cell.selected) {
+        this.ctx.strokeStyle = 'black';
+        this.ctx.lineWidth = 2;
+        this.ctx.stroke();
+      }
     }
   }
-  animate_destruction();
+
+  // Draw the grid
+  drawGrid() {
+    this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+    for (let i = 0; i < GRID_SIZE; i++) {
+      for (let j = 0; j < GRID_SIZE; j++) {
+        this.drawCell(i, j);
+      }
+    }
+    // Draw the score outside the grid
+    this.ctx.fillStyle = 'black';
+    this.ctx.font = '24px Arial';
+    this.ctx.textAlign = 'left';
+    this.ctx.textBaseline = 'top';
+    this.ctx.fillText(`Score: ${this.score}`, 10, this.canvas.height - 40);
+  }
+
+  // Update the game state
+  update() {
+    this.drawGrid();
+    requestAnimationFrame(() => {
+      this.update();
+    });
+  }
 }
 
-// Draw the grid and update the game state
-function update() {
-  draw_grid();
-  requestAnimationFrame(update);
-}
-
-// Check for matches every 100ms
-setInterval(check_matches, 100);
-
-update();
+// Create a new game
+new Game();
