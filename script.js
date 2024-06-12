@@ -1,10 +1,15 @@
 // Constants
-const GRID_SIZE = 12;
-const CELL_SIZE = 600 / GRID_SIZE;
-const ANIMATION_DURATION = 2000; // milliseconds
+const GRID_SIZE = 12; // The size of the grid in terms of number of cells.
+const CELL_SIZE = 600 / GRID_SIZE; // The size of each cell in the grid.
+const ANIMATION_DURATION = 2000; // The duration of animations in milliseconds.
 
-// Game class
+/**
+ * Represents a game of shapes.
+ */
 class Game {
+  /**
+   * Initializes a new game.
+   */
   constructor() {
     // Get the canvas element
     this.canvas = document.querySelector('.canvas');
@@ -33,8 +38,8 @@ class Game {
     this.grid = this.initializeGrid();
 
     // Initialize the game state
-    this.selected_cell = null;
-    this.score = 0;
+    this.selected_cell = null; // The currently selected cell.
+    this.score = 0; // The player's current score.
 
     // Add event listeners
     this.canvas.addEventListener('click', (event) => {
@@ -50,11 +55,16 @@ class Game {
     this.update();
   }
 
-  // Initialize the grid with random shapes
+  /**
+   * Initializes the grid with random shapes.
+   * @returns A 2D array representing the grid.
+   */
   initializeGrid() {
     let grid = [];
+    // Initialize each row in the grid.
     for (let i = 0; i < GRID_SIZE; i++) {
       grid[i] = [];
+      // Initialize each cell in the row.
       for (let j = 0; j < GRID_SIZE; j++) {
         const shape = this.shapes[Math.floor(Math.random() * this.shapes.length)];
         grid[i][j] = { shape, selected: false, animating: false };
@@ -63,7 +73,10 @@ class Game {
     return grid;
   }
 
-  // Handle user input
+  /**
+   * Handles user input.
+   * @param event The click event.
+   */
   handleClick(event) {
     const x = Math.floor(event.offsetX / CELL_SIZE);
     const y = Math.floor(event.offsetY / CELL_SIZE);
@@ -79,10 +92,13 @@ class Game {
     }
   }
 
-  // Check for matches
+  /**
+   * Checks for matches in the grid.
+   */
   checkMatches() {
     // Check rows
     for (let i = 0; i < GRID_SIZE; i++) {
+      // Check for matches in the current row.
       let match = 1;
       let match_type = null;
       for (let j = 0; j < GRID_SIZE; j++) {
@@ -91,6 +107,7 @@ class Game {
             match++;
           } else {
             if (match >= 3) {
+              // Destroy the matched cells.
               for (let k = j - match; k < j; k++) {
                 this.destroyCell(i, k);
               }
@@ -102,6 +119,7 @@ class Game {
         }
       }
       if (match >= 3) {
+        // Destroy the matched cells.
         for (let k = GRID_SIZE - match; k < GRID_SIZE; k++) {
           this.destroyCell(i, k);
         }
@@ -110,6 +128,7 @@ class Game {
     }
     // Check columns
     for (let j = 0; j < GRID_SIZE; j++) {
+      // Check for matches in the current column.
       let match = 1;
       let match_type = null;
       for (let i = 0; i < GRID_SIZE; i++) {
@@ -118,6 +137,7 @@ class Game {
             match++;
           } else {
             if (match >= 3) {
+              // Destroy the matched cells.
               for (let k = i - match; k < i; k++) {
                 this.destroyCell(k, j);
               }
@@ -129,6 +149,7 @@ class Game {
         }
       }
       if (match >= 3) {
+        // Destroy the matched cells.
         for (let k = GRID_SIZE - match; k < GRID_SIZE; k++) {
           this.destroyCell(k, j);
         }
@@ -137,8 +158,12 @@ class Game {
     }
   }
 
-// Destroy a cell
-destroyCell(i, j) {
+  /**
+   * Destroys a cell.
+   * @param i The row index of the cell.
+   * @param j The column index of the cell.
+   */
+  destroyCell(i, j) {
     const color = this.grid[i][j].shape ? this.grid[i][j].shape.color : 'white'; // Store the color of the shape
     const shapeType = this.grid[i][j].shape ? this.grid[i][j].shape.type : null; // Store the type of the shape
     this.grid[i][j].shape = null;
@@ -214,7 +239,11 @@ destroyCell(i, j) {
     animateDestruction();
   }
 
-  // Draw a cell
+  /**
+   * Draws a cell.
+   * @param i The row index of the cell.
+   * @param j The column index of the cell.
+   */
   drawCell(i, j) {
     const cell = this.grid[i][j];
     if (cell.shape) {
@@ -259,9 +288,12 @@ destroyCell(i, j) {
     }
   }
 
-  // Draw the grid
+  /**
+   * Draws the grid.
+   */
   drawGrid() {
     this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+    // Draw each cell in the grid.
     for (let i = 0; i < GRID_SIZE; i++) {
       for (let j = 0; j < GRID_SIZE; j++) {
         this.drawCell(i, j);
@@ -275,7 +307,9 @@ destroyCell(i, j) {
     this.ctx.fillText(`Score: ${this.score}`, 10, this.canvas.height - 40);
   }
 
-  // Update the game state
+  /**
+   * Updates the game state.
+   */
   update() {
     this.drawGrid();
     requestAnimationFrame(() => {
